@@ -32,7 +32,7 @@ Telegram-бот для летнего лагеря, который помога�
 ### 🔧 1. Клонируй репозиторий
 
 ```bash
-git clone https://github.com/your-username/vozhetskiy-helper-bot.git
+git clone https://github.com/anton1ks/VozhatskiyHelper.git
 ```
 ### 2. Создай .env файл
 Создай файл .env в корне проекта:
