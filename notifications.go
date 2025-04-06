@@ -15,7 +15,17 @@ func ScheduleNotifications(bot *tgbotapi.BotAPI, chatID int64) {
 	allEvents = append(allEvents, eventsToday...)
 	allEvents = append(allEvents, eventsTomorrow...)
 
-	for _, event := range allEvents {
+	uniqueEventsMap := make(map[string]Event)
+	for _, ev := range allEvents {
+		key := fmt.Sprintf("%s|%s|%s", ev.Name, ev.Location, ev.StartTime.String())
+		uniqueEventsMap[key] = ev
+	}
+	var uniqueEvents []Event
+	for _, ev := range uniqueEventsMap {
+		uniqueEvents = append(uniqueEvents, ev)
+	}
+
+	for _, event := range uniqueEvents {
 		reminder30 := event.StartTime.Add(-30 * time.Minute)
 		reminder10 := event.StartTime.Add(-10 * time.Minute)
 
