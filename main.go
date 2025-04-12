@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	bot.Debug = true
+	bot.Debug = false
 	log.Printf("Авторизован как %s", bot.Self.UserName)
 	go StartScheduleUpdater()
 	u := tgbotapi.NewUpdate(0)
