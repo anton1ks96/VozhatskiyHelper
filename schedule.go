@@ -9,9 +9,11 @@ import (
 )
 
 type Event struct {
-	Name      string
-	Location  string
-	StartTime time.Time
+	Name       string
+	Location   string
+	StartTime  time.Time
+	notified30 bool
+	notified10 bool
 }
 
 var eventsToday []Event
@@ -75,6 +77,5 @@ func StartScheduleUpdater() {
 	for range ticker.C {
 		ShiftScheduleIfNeeded()
 		RemovePastEvents()
-		log.Println("Автоматическое обновление расписания выполнено.")
 	}
 }

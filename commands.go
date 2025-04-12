@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"time"
 )
@@ -109,14 +108,12 @@ func ShiftScheduleIfNeeded() {
 	if len(eventsToday) > 0 {
 		eventDate := eventsToday[0].StartTime.In(loc).Format("2006-01-02")
 		if eventDate != todayDate {
-			log.Printf("Смена дня: события в eventsToday устарели (%s), переносим события из eventsTomorrow", eventDate)
 			eventsToday = eventsTomorrow
 			eventsTomorrow = nil
 		}
 	} else if len(eventsTomorrow) > 0 {
 		eventDate := eventsTomorrow[0].StartTime.In(loc).Format("2006-01-02")
 		if eventDate == todayDate {
-			log.Printf("Смена дня: eventsTomorrow теперь относятся к сегодня (%s), переносим их в eventsToday", todayDate)
 			eventsToday = eventsTomorrow
 			eventsTomorrow = nil
 		}

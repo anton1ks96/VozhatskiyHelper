@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -21,16 +22,16 @@ func main() {
 	}
 	token := os.Getenv("TELEGRAM_TOKEN")
 
-	adminChatIDStr := os.Getenv("ADMIN_CHAT_ID")
-	adminChatID, err := strconv.ParseInt(adminChatIDStr, 10, 64)
+	adminChatIDsStr := os.Getenv("ADMIN_CHAT_IDS")
+	adminChatIDs, err := parseChatIDs(adminChatIDsStr)
 	if err != nil {
-		log.Fatalf("Ошибка преобразования ADMIN_CHAT_ID: %v", err)
+		log.Fatalf("Ошибка парсинга ADMIN_CHAT_IDS: %v", err)
 	}
 
-	notificationChatIDStr := os.Getenv("NOTIFICATION_CHAT_ID")
-	notificationChatID, err := strconv.ParseInt(notificationChatIDStr, 10, 64)
+	notificationChatIDsStr := os.Getenv("NOTIFICATION_CHAT_IDS")
+	notificationChatIDs, err := parseChatIDs(notificationChatIDsStr)
 	if err != nil {
-		log.Fatalf("Ошибка преобразования NOTIFICATION_CHAT_ID: %v", err)
+		log.Fatalf("Ошибка парсинга NOTIFICATION_CHAT_IDS: %v", err)
 	}
 
 	bot, err := tgbotapi.NewBotAPI(token)
@@ -46,7 +47,7 @@ func main() {
 
 	for update := range updates {
 		if update.Message != nil {
-			if update.Message.Chat.ID == adminChatID && update.Message.Document != nil {
+			if update.Message.Document != nil && contains(adminChatIDs, update.Message.Chat.ID) {
 				fileID := update.Message.Document.FileID
 				file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 				if err != nil {
@@ -122,7 +123,7 @@ func main() {
 
 			SetEvents(loadedEvents, dayOffset)
 
-			ScheduleNotifications(bot, notificationChatID)
+			go StartNotificationScheduler(bot, notificationChatIDs)
 
 			var dayText string
 			switch dayOffset {
@@ -139,10 +140,11 @@ func main() {
 				scheduleMsgText += fmt.Sprintf("• %s | %s | %s\n", ev.Name, ev.Location, ev.StartTime.Format("15:04"))
 			}
 
-			msg := tgbotapi.NewMessage(notificationChatID, scheduleMsgText)
-			_, err = bot.Send(msg)
-			if err != nil {
-				log.Println("Ошибка отправки сообщения с расписанием:", err)
+			for _, chatID := range notificationChatIDs {
+				msg := tgbotapi.NewMessage(chatID, scheduleMsgText)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("Ошибка отправки сообщения в чат %d: %v", chatID, err)
+				}
 			}
 
 			editMsg := tgbotapi.NewEditMessageText(
@@ -184,4 +186,26 @@ func main() {
 			}
 		}
 	}
+}
+
+func parseChatIDs(idsStr string) ([]int64, error) {
+	var ids []int64
+	parts := strings.Split(idsStr, ",")
+	for _, part := range parts {
+		id, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func contains(slice []int64, id int64) bool {
+	for _, v := range slice {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }

@@ -2,59 +2,64 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func ScheduleNotifications(bot *tgbotapi.BotAPI, chatID int64) {
-	now := time.Now()
-
-	var allEvents []Event
-	allEvents = append(allEvents, eventsToday...)
-	allEvents = append(allEvents, eventsTomorrow...)
-
-	uniqueEventsMap := make(map[string]Event)
-	for _, ev := range allEvents {
-		key := fmt.Sprintf("%s|%s|%s", ev.Name, ev.Location, ev.StartTime.String())
-		uniqueEventsMap[key] = ev
+func StartNotificationScheduler(bot *tgbotapi.BotAPI, chatIDs []int64) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		for _, chatID := range chatIDs {
+			CheckAndSendNotifications(bot, chatID)
+		}
 	}
-	var uniqueEvents []Event
-	for _, ev := range uniqueEventsMap {
-		uniqueEvents = append(uniqueEvents, ev)
-	}
+}
 
-	for _, event := range uniqueEvents {
-		reminder30 := event.StartTime.Add(-30 * time.Minute)
-		reminder10 := event.StartTime.Add(-10 * time.Minute)
+func CheckAndSendNotifications(bot *tgbotapi.BotAPI, chatID int64) {
+	loc := time.FixedZone("GMT+5", 5*3600)
+	now := time.Now().In(loc)
 
-		if reminder30.After(now) {
-			go func(ev Event, t time.Time) {
-				time.Sleep(time.Until(t))
-				text := fmt.Sprintf("Через 30 минут событие \"%s\" в локации \"%s\"", ev.Name, ev.Location)
-				msg := tgbotapi.NewMessage(chatID, text)
-				_, err := bot.Send(msg)
-				if err != nil {
-					log.Println("Ошибка отправки уведомления за 30 мин для события", ev.Name, ":", err)
-				} else {
-					log.Printf("Уведомление за 30 мин для события '%s' успешно отправлено в чат %d", ev.Name, chatID)
-				}
-			}(event, reminder30)
+	for i := 0; i < len(eventsToday); i++ {
+		remaining := eventsToday[i].StartTime.Sub(now)
+		if remaining <= 30*time.Minute && remaining > 29*time.Minute && !eventsToday[i].notified30 {
+			text := fmt.Sprintf("Через 30 минут событие \"%s\" в локации \"%s\"", eventsToday[i].Name, eventsToday[i].Location)
+			msg := tgbotapi.NewMessage(chatID, text)
+			if _, err := bot.Send(msg); err != nil {
+			} else {
+				eventsToday[i].notified30 = true
+			}
 		}
 
-		if reminder10.After(now) {
-			go func(ev Event, t time.Time) {
-				time.Sleep(time.Until(t))
-				text := fmt.Sprintf("Скоро начинается \"%s\" – пора собираться! Локация - \"%s\"", ev.Name, ev.Location)
-				msg := tgbotapi.NewMessage(chatID, text)
-				_, err := bot.Send(msg)
-				if err != nil {
-					log.Println("Ошибка отправки уведомления за 10 мин для события", ev.Name, ":", err)
-				} else {
-					log.Printf("Уведомление за 10 мин для события '%s' успешно отправлено в чат %d", ev.Name, chatID)
-				}
-			}(event, reminder10)
+		if remaining <= 10*time.Minute && remaining > 9*time.Minute && !eventsToday[i].notified10 {
+			text := fmt.Sprintf("Скоро начинается \"%s\" – пора собираться! Локация - \"%s\"", eventsToday[i].Name, eventsToday[i].Location)
+			msg := tgbotapi.NewMessage(chatID, text)
+			if _, err := bot.Send(msg); err != nil {
+			} else {
+				eventsToday[i].notified10 = true
+			}
+		}
+	}
+
+	for i := 0; i < len(eventsTomorrow); i++ {
+		remaining := eventsTomorrow[i].StartTime.Sub(now)
+		if remaining <= 30*time.Minute && remaining > 29*time.Minute && !eventsTomorrow[i].notified30 {
+			text := fmt.Sprintf("Через 30 минут событие \"%s\" в локации \"%s\"", eventsTomorrow[i].Name, eventsTomorrow[i].Location)
+			msg := tgbotapi.NewMessage(chatID, text)
+			if _, err := bot.Send(msg); err != nil {
+			} else {
+				eventsTomorrow[i].notified30 = true
+			}
+		}
+
+		if remaining <= 10*time.Minute && remaining > 9*time.Minute && !eventsTomorrow[i].notified10 {
+			text := fmt.Sprintf("Скоро начинается \"%s\" – пора собираться! Локация - \"%s\"", eventsTomorrow[i].Name, eventsTomorrow[i].Location)
+			msg := tgbotapi.NewMessage(chatID, text)
+			if _, err := bot.Send(msg); err != nil {
+			} else {
+				eventsTomorrow[i].notified10 = true
+			}
 		}
 	}
 }
